@@ -345,28 +345,26 @@ if ask_clicked:
                 max_chunks=4
             )
 
-        st.markdown("## 🤖 Assistant Answer")
-
-      st.markdown(
-    f"""
-    <div class="answer-card">
-    {result["answer"]}
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-
-# اعرض المصادر فقط إذا كانت موجودة
-if result["sources"]:
-
-    st.markdown("## 📚 Sources")
-
-    for source in result["sources"]:
-        st.markdown(
+                 st.markdown(
             f"""
-            <div class="service-card">
-            📄 {source}
+            <div class="answer-card">
+            {result["answer"]}
             </div>
             """,
             unsafe_allow_html=True
         )
+
+        # اعرض المصادر فقط إذا كانت موجودة
+        if result["sources"]:
+
+            st.markdown("## 📚 Sources")
+
+            for source in result["sources"]:
+                st.markdown(
+                    f"""
+                    <div class="service-card">
+                    📄 {source}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
