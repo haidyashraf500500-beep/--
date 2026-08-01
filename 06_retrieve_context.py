@@ -116,7 +116,7 @@ def build_context_package(query: str, k: int = 6, word_budget: int = 220, max_ch
 
 
 def main() -> None:
-    demo_query = "عايز رخصة قيادة خاصة، السن المطلوب كام والكشف الطبي بيشمل ايه؟"
+     demo_query = "عايز رخصة قيادة خاصة، السن المطلوب كام والكشف الطبي بيشمل ايه؟"
     package = build_context_package(demo_query)
     print(f"Query: {demo_query}\n")
     print(f"Selected {len(package['selected_chunks'])} chunks, {package['used_words']} words\n")
