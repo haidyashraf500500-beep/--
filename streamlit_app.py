@@ -80,7 +80,7 @@ if ask_clicked and query.strip():
             k=top_k,
             word_budget=word_budget,
             max_chunks=max_chunks,
-        )
+         )
 
     st.subheader("الإجابة")
     st.write(result["answer"])
