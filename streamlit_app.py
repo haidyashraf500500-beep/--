@@ -345,7 +345,9 @@ if ask_clicked:
                 max_chunks=4
             )
 
-                 st.markdown(
+                     st.markdown("## 🤖 Assistant Answer")
+
+        st.markdown(
             f"""
             <div class="answer-card">
             {result["answer"]}
@@ -368,3 +370,4 @@ if ask_clicked:
                     """,
                     unsafe_allow_html=True
                 )
+               
