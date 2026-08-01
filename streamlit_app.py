@@ -319,6 +319,7 @@ if ask_clicked:
         unsafe_allow_html=True
     )
 
+
     st.markdown(
         f"""
         <div style="
@@ -334,10 +335,13 @@ if ask_clicked:
         unsafe_allow_html=True
     )
 
+
     if query.strip() == "":
         st.warning("Please enter your question.")
 
+
     else:
+
         with st.spinner("Searching Knowledge Base..."):
 
             result = rag.answer_question(
@@ -346,43 +350,10 @@ if ask_clicked:
                 word_budget=220,
                 max_chunks=4
             )
+
 
         st.markdown("## 🤖 Assistant Answer")
 
-        st.markdown(
-            f"""
-            <div class="answer-card">
-            {result["answer"]}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-
-        if result["sources"]:
-
-            st.markdown("## 📚 Sources")
-
-            for source in result["sources"]:
-                st.markdown(
-                    f"""
-                    <div class="service-card">
-                    📄 {source}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-    if query.strip() == "":
-        st.warning("Please enter your question.")
-    else:
-        with st.spinner("Searching Knowledge Base..."):
-            result = rag.answer_question(
-                query=query,
-                k=6,
-                word_budget=220,
-                max_chunks=4
-            )
-
-                     st.markdown("## 🤖 Assistant Answer")
 
         st.markdown(
             f"""
@@ -393,12 +364,14 @@ if ask_clicked:
             unsafe_allow_html=True
         )
 
-        # اعرض المصادر فقط إذا كانت موجودة
+
         if result["sources"]:
 
             st.markdown("## 📚 Sources")
 
+
             for source in result["sources"]:
+
                 st.markdown(
                     f"""
                     <div class="service-card">
@@ -407,4 +380,3 @@ if ask_clicked:
                     """,
                     unsafe_allow_html=True
                 )
-               
