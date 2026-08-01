@@ -345,11 +345,11 @@ if ask_clicked:
         with st.spinner("Searching Knowledge Base..."):
 
             result = rag.answer_question(
-                query=query,
-                k=6,
-                word_budget=220,
-                max_chunks=4
-            )
+    query=query,
+    k=4,
+    word_budget=180,
+    max_chunks=3
+)
 
 
         st.markdown("## 🤖 Assistant Answer")
