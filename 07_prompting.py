@@ -106,7 +106,7 @@ def call_openrouter(prompt: str, model: str = None, temperature: float = 0.0) ->
         return f"Unexpected OpenRouter response: {data}"
 
 
-def answer_question(query: str, k: int = 6, word_budget: int = 220, max_chunks: int = 4) -> dict:
+def answer_question(query: str, k: int = 8, word_budget: int = 400, max_chunks: int =6) -> dict:
     """Full retrieval -> prompt -> generation flow for one user question."""
     package = build_context_package(query, k=k, word_budget=word_budget, max_chunks=max_chunks)
     prompt = build_grounded_prompt(package["query"], package["context_text"])
