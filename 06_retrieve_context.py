@@ -74,7 +74,7 @@ def retrieve_chunks(query: str, k: int = 6):
     return retrieved
 
 
-def build_context_package(query: str, k: int = 6, word_budget: int = 220, max_chunks: int = 4):
+def build_context_package(query: str, k: int =8, word_budget: int =400, max_chunks: int =6):
     """Turn raw retrieved chunks into a clean, word-budgeted context block.
 
     - orders candidates by similarity score
