@@ -53,25 +53,27 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
 def build_grounded_prompt(query: str, context_text: str) -> str:
+
     return f"""
 أنت مساعد ذكي متخصص في خدمات الأحوال المدنية المصرية.
 
-مهمتك الإجابة عن أسئلة المستخدم اعتماداً على السياق المرفق.
+أجب فقط باستخدام المعلومات الموجودة في المستندات المرفقة.
 
-القواعد:
-- استخدم المعلومات الموجودة في السياق كأولوية.
-- إذا كانت الإجابة موجودة في السياق، قدمها بشكل واضح ومنظم.
-- لا تخترع أسعار أو أرقام أو قوانين غير موجودة.
-- إذا لم تجد معلومات كافية للإجابة، قل:
+قواعد مهمة:
+- لا تستخدم أي معلومات من خارج المستندات.
+- لا تخمن ولا تكمل معلومات غير موجودة.
+- إذا كانت الإجابة موجودة في المستندات، اشرحها للمستخدم بطريقة واضحة ومنظمة.
+- إذا لم تجد الإجابة في المستندات، اكتب فقط:
 "لا أملك معلومات كافية في المستندات المتاحة للإجابة على هذا السؤال."
-- لا ترفض الإجابة لمجرد أن السياق مختصر، حاول الاستفادة من المعلومات المتاحة.
+
+- لا تذكر المصادر إلا إذا كانت موجودة فعلاً في السياق.
 - أجب باللغة العربية البسيطة.
-- في نهاية الإجابة اذكر المصادر التي اعتمدت عليها فقط إذا كانت موجودة.
 
 السؤال:
 {query}
 
-السياق:
+
+المستندات المتاحة:
 {context_text}
 """
 def call_openrouter(prompt: str, model: str = None, temperature: float = 0.0) -> str:
@@ -106,11 +108,36 @@ def call_openrouter(prompt: str, model: str = None, temperature: float = 0.0) ->
         return f"Unexpected OpenRouter response: {data}"
 
 
-def answer_question(query: str, k: int = 8, word_budget: int = 400, max_chunks: int =6) -> dict:
-    """Full retrieval -> prompt -> generation flow for one user question."""
-    package = build_context_package(query, k=k, word_budget=word_budget, max_chunks=max_chunks)
-    prompt = build_grounded_prompt(package["query"], package["context_text"])
+def answer_question(query: str, k: int = 8, word_budget: int = 400, max_chunks: int = 6) -> dict:
+
+    package = build_context_package(
+        query,
+        k=k,
+        word_budget=word_budget,
+        max_chunks=max_chunks
+    )
+
+
+    # لو مفيش مستند مناسب
+    if not package["context_text"].strip():
+
+        return {
+            "query": query,
+            "answer": "لا أملك معلومات كافية في المستندات المتاحة للإجابة على هذا السؤال.",
+            "sources": [],
+            "context_text": "",
+            "prompt": ""
+        }
+
+
+    prompt = build_grounded_prompt(
+        package["query"],
+        package["context_text"]
+    )
+
+
     answer_text = call_openrouter(prompt)
+
 
     return {
         "query": query,
@@ -121,17 +148,3 @@ def answer_question(query: str, k: int = 8, word_budget: int = 400, max_chunks: 
     }
 
 
-def main() -> None:
-    demo_query = "عايز أسجل شقة مساحتها 150 متر في الشهر العقاري، الرسوم كام؟"
-    result = answer_question(demo_query)
-
-    print(f"Query: {result['query']}\n")
-    print("Sources:")
-    for source in result["sources"]:
-        print(f"  - {source}")
-    print("\nAnswer:")
-    print(result["answer"])
-
-
-if __name__ == "__main__":
-    main()
