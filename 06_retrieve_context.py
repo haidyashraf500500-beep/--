@@ -19,7 +19,6 @@ import so this file (and everything downstream of it) works out of the box.
 import importlib.util
 import os
 
-
 def _load_module(filename: str, alias: str):
     module_path = os.path.join(os.path.dirname(__file__), filename)
     spec = importlib.util.spec_from_file_location(alias, module_path)
@@ -44,7 +43,6 @@ def _get_collection():
         create_chroma_store()
     client = get_chroma_client()
     return client.get_or_create_collection(name=COLLECTION_NAME)
-
 
 def retrieve_chunks(query: str, k: int = 6):
     """Query the vector store and return a list of chunk dicts with a score."""
@@ -80,11 +78,25 @@ def build_context_package(query: str, k: int = 6, word_budget: int = 220, max_ch
     """Turn raw retrieved chunks into a clean, word-budgeted context block.
 
     - orders candidates by similarity score
+    - filters weak matches using a similarity threshold
     - de-duplicates by chunk_id
     - stops once either max_chunks or word_budget is reached
     - keeps title metadata so the final answer can cite its sources
     """
-    candidates = sorted(retrieve_chunks(query, k=k), key=lambda c: c["score"], reverse=True)
+
+    # ترتيب النتائج حسب درجة التشابه
+    candidates = sorted(
+        retrieve_chunks(query, k=k),
+        key=lambda c: c["score"],
+        reverse=True,
+    )
+
+    # الاحتفاظ فقط بالنتائج ذات الصلة
+    SIMILARITY_THRESHOLD = 0.70
+    candidates = [
+        c for c in candidates
+        if c["score"] >= SIMILARITY_THRESHOLD
+    ]
 
     selected = []
     seen_ids = set()
@@ -93,16 +105,35 @@ def build_context_package(query: str, k: int = 6, word_budget: int = 220, max_ch
     for chunk in candidates:
         if chunk["chunk_id"] in seen_ids:
             continue
+
         if len(selected) >= max_chunks:
             break
+
         chunk_words = len(chunk["chunk_text"].split())
+
         if used_words + chunk_words > word_budget and selected:
             continue
+
         selected.append(chunk)
         seen_ids.add(chunk["chunk_id"])
         used_words += chunk_words
 
-    context_blocks = [f"[المصدر: {c['title']}]\n{c['chunk_text']}" for c in selected]
+    # لو مفيش أي Context مناسب
+    if not selected:
+        return {
+            "query": query,
+            "candidates": [],
+            "selected_chunks": [],
+            "sources": [],
+            "context_text": "",
+            "used_words": 0,
+        }
+
+    context_blocks = [
+        f"[المصدر: {c['title']}]\n{c['chunk_text']}"
+        for c in selected
+    ]
+
     context_text = "\n\n".join(context_blocks)
 
     return {
@@ -118,11 +149,14 @@ def build_context_package(query: str, k: int = 6, word_budget: int = 220, max_ch
 def main() -> None:
     demo_query = "عايز رخصة قيادة خاصة، السن المطلوب كام والكشف الطبي بيشمل ايه؟"
     package = build_context_package(demo_query)
+
     print(f"Query: {demo_query}\n")
     print(f"Selected {len(package['selected_chunks'])} chunks, {package['used_words']} words\n")
+
     print("Sources:")
     for source in package["sources"]:
         print(f"  - {source}")
+
     print("\n--- Context text ---\n")
     print(package["context_text"])
 
