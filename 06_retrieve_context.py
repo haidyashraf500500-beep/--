@@ -63,7 +63,6 @@ def retrieve_chunks(query: str, k: int = 6):
     distances = results["distances"][0]
 
     for chunk_id, chunk_text, metadata, distance in zip(ids, documents, metadatas, distances):
-        # Chroma returns cosine *distance*; convert to a similarity score in [0, 1].
         similarity_score = 1 - distance
         retrieved.append(
             {
@@ -77,13 +76,7 @@ def retrieve_chunks(query: str, k: int = 6):
 
 
 def build_context_package(query: str, k: int = 6, word_budget: int = 220, max_chunks: int = 4):
-    """Turn raw retrieved chunks into a clean, word-budgeted context block.
-
-    - orders candidates by similarity score
-    - de-duplicates by chunk_id
-    - stops once either max_chunks or word_budget is reached
-    - keeps title metadata so the final answer can cite its sources
-    """
+    """Turn raw retrieved chunks into a clean, word-budgeted context block."""
     candidates = sorted(retrieve_chunks(query, k=k), key=lambda c: c["score"], reverse=True)
 
     selected = []
@@ -116,7 +109,7 @@ def build_context_package(query: str, k: int = 6, word_budget: int = 220, max_ch
 
 
 def main() -> None:
-     demo_query = "عايز رخصة قيادة خاصة، السن المطلوب كام والكشف الطبي بيشمل ايه؟"
+    demo_query = "عايز رخصة قيادة خاصة، السن المطلوب كام والكشف الطبي بيشمل ايه؟"
     package = build_context_package(demo_query)
     print(f"Query: {demo_query}\n")
     print(f"Selected {len(package['selected_chunks'])} chunks, {package['used_words']} words\n")
