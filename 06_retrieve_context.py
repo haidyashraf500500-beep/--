@@ -44,7 +44,7 @@ def _get_collection():
     client = get_chroma_client()
     return client.get_or_create_collection(name=COLLECTION_NAME)
 
-def retrieve_chunks(query: str, k: int = 6):
+def retrieve_chunks(query: str, k: int = 10):
     """Query the vector store and return a list of chunk dicts with a score."""
     collection = _get_collection()
     query_embedding = embed_texts([query])[0].tolist()
@@ -74,7 +74,7 @@ def retrieve_chunks(query: str, k: int = 6):
     return retrieved
 
 
-def build_context_package(query: str, k: int =8, word_budget: int =400, max_chunks: int =6):
+def build_context_package(query: str, k: int =8, word_budget: int =400, max_chunks: int =4):
     """Turn raw retrieved chunks into a clean, word-budgeted context block.
 
     - orders candidates by similarity score
@@ -91,13 +91,13 @@ def build_context_package(query: str, k: int =8, word_budget: int =400, max_chun
         reverse=True,
     )
 
-    # الاحتفاظ فقط بالنتائج ذات الصلة
-    SIMILARITY_THRESHOLD = 0.70
-    candidates = [
-        c for c in candidates
-        if c["score"] >= SIMILARITY_THRESHOLD
-    ]
+  # الاحتفاظ فقط بالنتائج ذات الصلة
+SIMILARITY_THRESHOLD = 0.45
 
+candidates = [
+    c for c in candidates
+    if c["score"] >= SIMILARITY_THRESHOLD
+]
     selected = []
     seen_ids = set()
     used_words = 0
