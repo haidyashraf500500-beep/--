@@ -347,26 +347,26 @@ if ask_clicked:
 
         st.markdown("## 🤖 Assistant Answer")
 
+      st.markdown(
+    f"""
+    <div class="answer-card">
+    {result["answer"]}
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+# اعرض المصادر فقط إذا كانت موجودة
+if result["sources"]:
+
+    st.markdown("## 📚 Sources")
+
+    for source in result["sources"]:
         st.markdown(
             f"""
-            <div class="answer-card">
-            {result["answer"]}
+            <div class="service-card">
+            📄 {source}
             </div>
             """,
             unsafe_allow_html=True
         )
-
-        st.markdown("## 📚 Sources")
-
-        if result["sources"]:
-            for source in result["sources"]:
-                st.markdown(
-                    f"""
-                    <div class="service-card">
-                    📄 {source}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-        else:
-            st.info("No sources found.")
