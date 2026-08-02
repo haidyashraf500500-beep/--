@@ -2,43 +2,52 @@
 """
 06_retrieve_context.py
 =======================
-Stage 6 of the pipeline: context retrieval (Memory Optimized for Streamlit Cloud).
+Stage 6 of the pipeline: context retrieval.
+
+documents -> preprocessing -> chunking -> vector representation -> vector store
+-> [context retrieval] -> prompting -> Streamlit UI
+
+Loads the Chroma collection helpers from 05_create_chroma_store.py and the
+embedding helper from 04_vector_representation.py, then exposes
+`build_context_package(query)`: retrieve top-k chunks for a query and pack
+them into a word-budgeted, de-duplicated context block ready for a prompt.
+
+If the store does not exist yet on disk, it is built automatically on first
+import so this file (and everything downstream of it) works out of the box.
 """
 
+import importlib.util
 import os
 
+
+def _load_module(filename: str, alias: str):
+    module_path = os.path.join(os.path.dirname(__file__), filename)
+    spec = importlib.util.spec_from_file_location(alias, module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+_store_module = _load_module("05_create_chroma_store.py", "stage05_create_chroma_store")
+_vector_module = _load_module("04_vector_representation.py", "stage04_vector_representation")
+
+CHROMA_DIR = _store_module.CHROMA_DIR
+COLLECTION_NAME = _store_module.COLLECTION_NAME
+get_chroma_client = _store_module.get_chroma_client
+create_chroma_store = _store_module.create_chroma_store
+embed_texts = _vector_module.embed_texts
+
+
 def _get_collection():
-    """Return the persistent collection safely with lazy loading to save RAM."""
-    import importlib.util
-    
-    module_path = os.path.dirname(__file__)
-    store_path = os.path.join(module_path, "05_create_chroma_store.py")
-    
-    spec_store = importlib.util.spec_from_file_location("stage05", store_path)
-    _store_module = importlib.util.module_from_spec(spec_store)
-    spec_store.loader.exec_module(_store_module)
-    
-    CHROMA_DIR = _store_module.CHROMA_DIR
-    COLLECTION_NAME = _store_module.COLLECTION_NAME
-    get_chroma_client = _store_module.get_chroma_client
-    
+    """Return the persistent collection, building it on first run if missing."""
+    if not os.path.isdir(CHROMA_DIR):
+        create_chroma_store()
     client = get_chroma_client()
     return client.get_or_create_collection(name=COLLECTION_NAME)
 
 
 def retrieve_chunks(query: str, k: int = 6):
     """Query the vector store and return a list of chunk dicts with a score."""
-    import importlib.util
-    
-    module_path = os.path.dirname(__file__)
-    vector_path = os.path.join(module_path, "04_vector_representation.py")
-    
-    spec_vec = importlib.util.spec_from_file_location("stage04", vector_path)
-    _vector_module = importlib.util.module_from_spec(spec_vec)
-    spec_vec.loader.exec_module(_vector_module)
-    
-    embed_texts = _vector_module.embed_texts
-
     collection = _get_collection()
     query_embedding = embed_texts([query])[0].tolist()
 
@@ -54,6 +63,7 @@ def retrieve_chunks(query: str, k: int = 6):
     distances = results["distances"][0]
 
     for chunk_id, chunk_text, metadata, distance in zip(ids, documents, metadatas, distances):
+        # Chroma returns cosine *distance*; convert to a similarity score in [0, 1].
         similarity_score = 1 - distance
         retrieved.append(
             {
@@ -67,7 +77,13 @@ def retrieve_chunks(query: str, k: int = 6):
 
 
 def build_context_package(query: str, k: int = 6, word_budget: int = 220, max_chunks: int = 4):
-    """Turn raw retrieved chunks into a clean, word-budgeted context block."""
+    """Turn raw retrieved chunks into a clean, word-budgeted context block.
+
+    - orders candidates by similarity score
+    - de-duplicates by chunk_id
+    - stops once either max_chunks or word_budget is reached
+    - keeps title metadata so the final answer can cite its sources
+    """
     candidates = sorted(retrieve_chunks(query, k=k), key=lambda c: c["score"], reverse=True)
 
     selected = []
