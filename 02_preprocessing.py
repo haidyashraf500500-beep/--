@@ -38,7 +38,7 @@ def clean_arabic_text(text: str) -> str:
     """Normalize Arabic text extracted from a PDF or typed by hand.
 
     - removes diacritics (tashkeel)
-    - splits digits glued to Arabic words (a common PDF-extraction artifact,
+ - splits digits glued to Arabic words (a common PDF-extraction artifact,
       e.g. "عاماً15" -> "عاماً 15")
     - collapses repeated whitespace / blank lines
     """
