@@ -16,22 +16,22 @@ st.set_page_config(
     layout="centered"
 )
 
-# 2. Dynamic Module Loader
-def _load_module(filename: str, alias: str):
-    module_path = os.path.join(os.path.dirname(__file__), filename)
-    spec = importlib.util.spec_from_file_location(alias, module_path)
+# 2. Dynamic Module Loader with Resource Caching to prevent RAM overload
+@st.cache_resource(show_spinner=False)
+def load_prompting_module():
+    module_path = os.path.join(os.path.dirname(__file__), "07_prompting.py")
+    spec = importlib.util.spec_from_file_location("stage07_prompting", module_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
-# Load Prompting Stage
-prompting_module = _load_module("07_prompting.py", "stage07_prompting")
+prompting_module = load_prompting_module()
 
 # Handle OpenRouter API Key securely from Streamlit Secrets
 if "OPENROUTER_API_KEY" in st.secrets:
     prompting_module.OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
 
-# 3. Cache Resource to save memory
+# 3. Cache Data for queries to optimize performance
 @st.cache_data(show_spinner=False)
 def get_answer(query: str):
     return prompting_module.answer_question(query)
@@ -39,7 +39,6 @@ def get_answer(query: str):
 # 4. Custom Styling (Advanced CSS for Stunning UI)
 st.markdown("""
 <style>
-    /* Main Header Container */
     .header-box {
         background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
         color: #ffffff;
@@ -54,20 +53,16 @@ st.markdown("""
         font-size: 2.4rem !important;
         font-weight: 800 !important;
         margin-bottom: 10px !important;
-        letter-spacing: -0.5px;
     }
     .header-box p {
         color: #e0e7ff !important;
         font-size: 1rem !important;
         margin: 0 !important;
-        font-weight: 400;
     }
     .header-icon {
         font-size: 50px;
         margin-bottom: 12px;
     }
-
-    /* Section Subtitles */
     .section-title {
         text-align: center;
         color: #3b82f6;
@@ -75,19 +70,16 @@ st.markdown("""
         font-weight: 700;
         margin-top: 30px;
         margin-bottom: 15px;
-        letter-spacing: 0.3px;
     }
-
-    /* Professional Cards Styling */
     div.stButton > button {
         width: 100%;
-        height: 120px;
+        height: 110px;
         background: #1e293b !important;
         color: #f8fafc !important;
         border: 1px solid #334155 !important;
         border-radius: 16px !important;
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 0.3s ease;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -98,23 +90,14 @@ st.markdown("""
     div.stButton > button:hover {
         border-color: #3b82f6 !important;
         background: #0f172a !important;
-        box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
-        transform: translateY(-4px);
+        transform: translateY(-3px);
     }
-
-    /* Primary Action Button (Ask Assistant) */
     .stButton button[kind="primary"] {
         background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%) !important;
         color: white !important;
         height: 50px !important;
         border-radius: 12px !important;
-        font-size: 1.1rem !important;
         font-weight: 700 !important;
-        box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
-    }
-    .stButton button[kind="primary"]:hover {
-        background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%) !important;
-        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -188,7 +171,6 @@ if query_to_run:
             answer_text = res.get("answer", "")
             sources = res.get("sources", [])
 
-            # Check if context was insufficient (No Hallucination Handling)
             not_enough_info_triggers = [
                 "غير كاف", "لا يوجد", "لم يتم العثور", "غير متوفر",
                 "لا تحتوي المستندات", "لا توجد معلومات", "عفواً"
@@ -198,13 +180,11 @@ if query_to_run:
             st.markdown("### 📝 الإجابة الرسمية:")
             st.info(answer_text)
 
-            # STRICT RULE: ONLY show sources if information is valid and sufficient
             if sources and not is_insufficient:
                 st.markdown("### 📚 المصادر المعتمدة:")
                 for src in sources:
                     st.success(f"📌 {src}")
             elif is_insufficient:
-                # Completely skip showing sources when info is missing
                 pass
 
         except Exception as e:
