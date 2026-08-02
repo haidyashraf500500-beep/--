@@ -2,21 +2,12 @@
 """
 04_vector_representation.py
 ============================
-Stage 4 of the pipeline: vector representation.
-
-documents -> preprocessing -> chunking -> [vector representation] -> vector store
--> context retrieval -> prompting -> Streamlit UI
-
-Loads CHUNKS from 03_chunking.py and turns each chunk's `search_text` into a
-dense embedding vector using a multilingual sentence-transformers model
-(needed because the corpus is Arabic).
+Stage 4 of the pipeline: vector representation (Memory Optimized).
 """
 
 import importlib.util
 import os
-
 import numpy as np
-from sentence_transformers import SentenceTransformer
 
 
 def _load_module(filename: str, alias: str):
@@ -35,10 +26,11 @@ EMBEDDING_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 _model = None
 
 
-def get_embedding_model() -> SentenceTransformer:
-    """Lazily load (and cache) the embedding model so importing this file is cheap."""
+def get_embedding_model():
+    """Lazily load SentenceTransformer only when actually needed to save RAM."""
     global _model
     if _model is None:
+        from sentence_transformers import SentenceTransformer
         _model = SentenceTransformer(EMBEDDING_MODEL_NAME)
     return _model
 
@@ -55,7 +47,7 @@ def build_chunk_embeddings(chunks):
 
 def main() -> None:
     embeddings = build_chunk_embeddings(CHUNKS)
-    print(f"Embedded {len(CHUNKS)} chunks with '{EMBEDDING_MODEL_NAME}'")
+    print(f"Embedded {len(CHUNCHS) if 'CHUNCHS' in globals() else len(CHUNKS)} chunks with '{EMBEDDING_MODEL_NAME}'")
     print(f"Embedding matrix shape: {embeddings.shape}")
     print(f"Example vector norm (should be ~1.0): {np.linalg.norm(embeddings[0]):.4f}")
 
