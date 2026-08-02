@@ -1,5 +1,4 @@
 import streamlit as st
-from pathlib import Path
 
 # =========================================================
 # PAGE CONFIG
@@ -12,17 +11,24 @@ st.set_page_config(
 )
 
 # =========================================================
-# LOAD CSS
+# EMBEDDED CSS (لضمان وضوح جميع النصوص والأجزاء)
 # =========================================================
 
-css_path = Path("style.css")
-
-if css_path.exists():
-    with open(css_path, "r", encoding="utf-8") as f:
-        st.markdown(
-            f"<style>{f.read()}</style>",
-            unsafe_allow_html=True
-        )
+st.markdown(
+    """
+    <style>
+    /* فرض لون داكن وواضح لكل النصوص في الصفحة */
+    p, span, label, .stMarkdown, .stSubheader, h3 {
+        color: #1a202c !important;
+    }
+    /* ضمان وضوح عناوين الخدمات */
+    div[data-testid="column"] p {
+        color: #1a202c !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 # =========================================================
 # HERO
