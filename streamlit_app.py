@@ -2,10 +2,9 @@
 """
 streamlit_app.py
 ================
-Streamlit UI for Egyptian Civil Status AI Assistant (RAG Pipeline) - Optimized for Low RAM
+Streamlit UI for Egyptian Civil Status AI Assistant (Lightweight & Low Memory)
 """
 
-import importlib.util
 import os
 import streamlit as st
 
@@ -16,28 +15,21 @@ st.set_page_config(
     layout="centered"
 )
 
-# 2. Optimized Single-Load Resource for Prompting Stage
+# 2. Lazy Import Function for Prompting Stage (Saves RAM)
 @st.cache_resource(show_spinner=False)
-def get_prompting_module():
+def get_answer_function():
+    import importlib.util
     module_path = os.path.join(os.path.dirname(__file__), "07_prompting.py")
     spec = importlib.util.spec_from_file_location("stage07_prompting", module_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return module
-
-try:
-    prompting_module = get_prompting_module()
+    
     if "OPENROUTER_API_KEY" in st.secrets:
-        prompting_module.OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
-except Exception as e:
-    st.error(f"خطأ في تحميل وحدات النظام: {e}")
+        module.OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
+        
+    return module.answer_question
 
-# 3. Cached Data Query Function
-@st.cache_data(show_spinner=False)
-def fetch_answer(query: str):
-    return prompting_module.answer_question(query)
-
-# 4. Stunning Custom UI Styling
+# 3. Custom Styling (Stunning UI & Fixed Colors)
 st.markdown("""
 <style>
     .header-box {
@@ -99,7 +91,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 5. Header UI
+# 4. UI Header Rendering
 st.markdown("""
 <div class="header-box">
     <div style="font-size: 50px; margin-bottom: 12px;">🏛️</div>
@@ -108,7 +100,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 6. Search Bar Section
+# 5. Search Bar Section
 st.markdown('<div class="section-title">💬 Ask Your Question / اسأل سؤالك</div>', unsafe_allow_html=True)
 
 if "user_query" not in st.session_state:
@@ -125,7 +117,7 @@ col_center = st.columns([1, 2, 1])
 with col_center[1]:
     ask_button = st.button("🚀 Ask Assistant", use_container_width=True, type="primary")
 
-# 7. Popular Services Quick Cards
+# 6. Popular Services Quick Cards
 st.markdown('<div class="section-title">✨ Popular Services / الخدمات الشائعة</div>', unsafe_allow_html=True)
 
 r1_c1, r1_c2, r1_c3 = st.columns(3)
@@ -152,14 +144,15 @@ with r2_c3:
     if st.button("🏠\n\nAddress Update\nتحديث محل الإقامة"):
         clicked_query = "كيف يمكن تغيير أو تحديث محل الإقامة في بطاقة الرقم القومي؟"
 
-# 8. Execution Logic
+# 7. Execution Logic
 query_to_run = clicked_query or (user_input if ask_button and user_input.strip() else None)
 
 if query_to_run:
     st.markdown("---")
     with st.spinner("جاري البحث والتحليل في المستندات الحكومية..."):
         try:
-            res = fetch_answer(query_to_run)
+            answer_func = get_answer_function()
+            res = answer_func(query_to_run)
             answer_text = res.get("answer", "")
             sources = res.get("sources", [])
 
