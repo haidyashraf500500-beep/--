@@ -1,19 +1,36 @@
-# -*- coding: utf-8 -*-
-"""
+""
 07_prompting.py
 ================
 Stage 7 of the pipeline: prompting.
+
+documents -> preprocessing -> chunking -> vector representation -> vector store
+-> context retrieval -> [prompting] -> Streamlit UI
+
+Loads `build_context_package` from 06_retrieve_context.py, builds a grounded
+Arabic prompt, and calls an LLM through the OpenRouter API. This is the ONLY
+file that talks to an external LLM API.
+
+API key handling:
+- Locally: set OPENROUTER_API_KEY in a `.env` file (never commit it) and load
+  it with python-dotenv, OR export it as an environment variable.
+- On Streamlit Cloud: leave OPENROUTER_API_KEY unset here. streamlit_app.py
+  reads it from `st.secrets` and assigns it to this module at runtime -
+  see the `OPENROUTER_API_KEY = ...` line below and streamlit_app.py.
 """
 
 import importlib.util
 import os
+
 import requests
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
+    # python-dotenv is optional; on Streamlit Cloud secrets are used instead.
     pass
+
 
 def _load_module(filename: str, alias: str):
     module_path = os.path.join(os.path.dirname(__file__), filename)
@@ -22,16 +39,27 @@ def _load_module(filename: str, alias: str):
     spec.loader.exec_module(module)
     return module
 
+
 _retrieval_module = _load_module("06_retrieve_context.py", "stage06_retrieve_context")
 build_context_package = _retrieval_module.build_context_package
 
+# --- API configuration -------------------------------------------------
+# NEVER hard-code a real key here. This just reads from the environment
+# (locally) and is overwritten from st.secrets when deployed on Streamlit.
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
+
 def build_grounded_prompt(query: str, context_text: str) -> str:
-    return f"""أنت مساعد حكومي لخدمات الأحوال المدنية المصرية. أجب على السؤال الموجه لك بناءً على السياق المرفق أدناه فقط.
-إذا لم تجد الإجابة في السياق، قل بوضوح: "عذراً، لا أمتلك معلومات كافية للإجابة على هذا السؤال بناءً على المستندات الرسمية المتاحة."
+    return f"""أنت مساعد حكومي دقيق ومحايد، تجيب فقط بناءً على السياق المرفق أدناه.
+
+القواعد:
+- استخدم فقط المعلومات الموجودة في السياق.
+- إذا كان السياق غير كافٍ للإجابة، قل ذلك بوضوح ولا تخترع أرقاماً أو شروطاً.
+- اذكر الأرقام (الأسعار والمدد) بدقة كما وردت في السياق.
+- في نهاية إجابتك، اذكر أسماء المصادر (العناوين) التي اعتمدت عليها.
+- أجب بالعربية الفصحى المبسطة، وبإيجاز ووضوح.
 
 السؤال:
 {query}
@@ -40,11 +68,15 @@ def build_grounded_prompt(query: str, context_text: str) -> str:
 {context_text}
 """
 
+
 def call_openrouter(prompt: str, model: str = None, temperature: float = 0.0) -> str:
     model = model or OPENROUTER_MODEL
 
     if not OPENROUTER_API_KEY:
-        return "لا يوجد مفتاح OPENROUTER_API_KEY متاح."
+        return (
+            "لا يوجد مفتاح OPENROUTER_API_KEY متاح. أضفه في ملف .env محلياً، "
+            "أو في Streamlit secrets عند النشر."
+        )
 
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
@@ -68,21 +100,33 @@ def call_openrouter(prompt: str, model: str = None, temperature: float = 0.0) ->
     except (KeyError, IndexError):
         return f"Unexpected OpenRouter response: {data}"
 
-def answer_question(query: str, k: int = 6, word_budget: int = 220, max_chunks: int = 4, similarity_threshold: float = 0.0) -> dict:
-    """إرسال السؤال واسترجاع الإجابة بمرونة تامة بدون شروط معقدة"""
-    package = build_context_package(query, k=k, word_budget=word_budget, max_chunks=max_chunks)
 
+def answer_question(query: str, k: int = 6, word_budget: int = 220, max_chunks: int = 4) -> dict:
+    """Full retrieval -> prompt -> generation flow for one user question."""
+    package = build_context_package(query, k=k, word_budget=word_budget, max_chunks=max_chunks)
     prompt = build_grounded_prompt(package["query"], package["context_text"])
     answer_text = call_openrouter(prompt)
-
-    sources = package["sources"]
-    if "لا أمتلك معلومات كافية" in answer_text or "عذراً" in answer_text:
-        sources = []
 
     return {
         "query": query,
         "answer": answer_text,
-        "sources": sources,
+        "sources": package["sources"],
         "context_text": package["context_text"],
         "prompt": prompt,
     }
+
+
+def main() -> None:
+    demo_query = "عايز أسجل شقة مساحتها 150 متر في الشهر العقاري، الرسوم كام؟"
+    result = answer_question(demo_query)
+
+    print(f"Query: {result['query']}\n")
+    print("Sources:")
+    for source in result["sources"]:
+        print(f"  - {source}")
+    print("\nAnswer:")
+    print(result["answer"])
+
+
+if __name__ == "__main__":
+    main()
