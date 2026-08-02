@@ -1,4 +1,5 @@
-""
+# -*- coding: utf-8 -*-
+"""
 07_prompting.py
 ================
 Stage 7 of the pipeline: prompting.
