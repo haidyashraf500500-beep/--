@@ -2,7 +2,7 @@
 """
 streamlit_app.py
 ================
-Streamlit UI for Egyptian Civil Status AI Assistant (RAG Pipeline)
+Streamlit UI for Egyptian Civil Status AI Assistant (RAG Pipeline) - Optimized for Low RAM
 """
 
 import importlib.util
@@ -16,27 +16,28 @@ st.set_page_config(
     layout="centered"
 )
 
-# 2. Dynamic Module Loader with Resource Caching to prevent RAM overload
+# 2. Optimized Single-Load Resource for Prompting Stage
 @st.cache_resource(show_spinner=False)
-def load_prompting_module():
+def get_prompting_module():
     module_path = os.path.join(os.path.dirname(__file__), "07_prompting.py")
     spec = importlib.util.spec_from_file_location("stage07_prompting", module_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
-prompting_module = load_prompting_module()
+try:
+    prompting_module = get_prompting_module()
+    if "OPENROUTER_API_KEY" in st.secrets:
+        prompting_module.OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
+except Exception as e:
+    st.error(f"خطأ في تحميل وحدات النظام: {e}")
 
-# Handle OpenRouter API Key securely from Streamlit Secrets
-if "OPENROUTER_API_KEY" in st.secrets:
-    prompting_module.OPENROUTER_API_KEY = st.secrets["OPENROUTER_API_KEY"]
-
-# 3. Cache Data for queries to optimize performance
+# 3. Cached Data Query Function
 @st.cache_data(show_spinner=False)
-def get_answer(query: str):
+def fetch_answer(query: str):
     return prompting_module.answer_question(query)
 
-# 4. Custom Styling (Advanced CSS for Stunning UI)
+# 4. Stunning Custom UI Styling
 st.markdown("""
 <style>
     .header-box {
@@ -58,10 +59,6 @@ st.markdown("""
         color: #e0e7ff !important;
         font-size: 1rem !important;
         margin: 0 !important;
-    }
-    .header-icon {
-        font-size: 50px;
-        margin-bottom: 12px;
     }
     .section-title {
         text-align: center;
@@ -102,16 +99,16 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 5. UI Header Rendering
+# 5. Header UI
 st.markdown("""
 <div class="header-box">
-    <div class="header-icon">🏛️</div>
+    <div style="font-size: 50px; margin-bottom: 12px;">🏛️</div>
     <h1>Egyptian Civil Status AI</h1>
     <p>مساعد رقمي ذكي لخدمات الأحوال المدنية المصرية<br>Powered by RAG • OpenRouter • Artificial Intelligence</p>
 </div>
 """, unsafe_allow_html=True)
 
-# 6. Ask Question Section
+# 6. Search Bar Section
 st.markdown('<div class="section-title">💬 Ask Your Question / اسأل سؤالك</div>', unsafe_allow_html=True)
 
 if "user_query" not in st.session_state:
@@ -131,43 +128,38 @@ with col_center[1]:
 # 7. Popular Services Quick Cards
 st.markdown('<div class="section-title">✨ Popular Services / الخدمات الشائعة</div>', unsafe_allow_html=True)
 
-row1_col1, row1_col2, row1_col3 = st.columns(3)
-row2_col1, row2_col2, row2_col3 = st.columns(3)
+r1_c1, r1_c2, r1_c3 = st.columns(3)
+r2_c1, r2_c2, r2_c3 = st.columns(3)
 
 clicked_query = None
 
-with row1_col1:
+with r1_c1:
     if st.button("🪪\n\nNational ID\nبطاقة الرقم القومي"):
         clicked_query = "ما هي شروط وإجراءات استخراج أو تجديد بطاقة الرقم القومي؟"
-
-with row1_col2:
+with r1_c2:
     if st.button("👶\n\nBirth Certificate\nشهادة الميلاد"):
         clicked_query = "ما هي الأوراق والشروط المطلوبة لاستخراج شهادة الميلاد؟"
-
-with row1_col3:
+with r1_c3:
     if st.button("💍\n\nMarriage Certificate\nوثيقة الزواج"):
         clicked_query = "ما هي إجراءات وشروط توثيق أو استخراج وثيقة الزواج؟"
-
-with row2_col1:
+with r2_c1:
     if st.button("👨‍👩‍👧‍👦\n\nFamily Record\nالقيد العائلي"):
         clicked_query = "ما هي مستندات وشروط استخراج القيد العائلي لأول مرة؟"
-
-with row2_col2:
+with r2_c2:
     if st.button("⚰️\n\nDeath Certificate\nشهادة الوفاة"):
         clicked_query = "ما هي خطوات وإجراءات استخراج شهادة الوفاة؟"
-
-with row2_col3:
+with r2_c3:
     if st.button("🏠\n\nAddress Update\nتحديث محل الإقامة"):
         clicked_query = "كيف يمكن تغيير أو تحديث محل الإقامة في بطاقة الرقم القومي؟"
 
-# 8. Execution Logic & Response Filtering
+# 8. Execution Logic
 query_to_run = clicked_query or (user_input if ask_button and user_input.strip() else None)
 
 if query_to_run:
     st.markdown("---")
     with st.spinner("جاري البحث والتحليل في المستندات الحكومية..."):
         try:
-            res = get_answer(query_to_run)
+            res = fetch_answer(query_to_run)
             answer_text = res.get("answer", "")
             sources = res.get("sources", [])
 
